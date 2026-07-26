@@ -152,7 +152,7 @@ function createTile(node) {
 
   const activate = () => {
     if (node.url) {
-      window.location.href = node.url;
+      window.open(node.url, '_blank', 'noopener,noreferrer');
     } else {
       // "Folder-navigation drill-in" — push folder onto path and re-render.
       currentPath.push({ id: node.id, title: node.title });

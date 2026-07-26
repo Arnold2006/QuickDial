@@ -182,9 +182,9 @@ function buildFaviconBadge(node) {
   img.setAttribute('loading', 'lazy');
 
   try {
-    const hostname = new URL(node.url).hostname;
-    // Google's public favicon API — works without any extra permissions.
-    img.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
+    const pageUrl = new URL(node.url).toString();
+    // Chrome's internal favicon endpoint also supports local-network hosts.
+    img.src = `chrome://favicon2/?size=64&scale_factor=1x&page_url=${encodeURIComponent(pageUrl)}`;
   } catch {
     img.src = ''; // malformed URL → triggers onerror immediately
   }

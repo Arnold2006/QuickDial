@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickDial</title>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+
+  <!-- Breadcrumb — hidden when at the QuickDial root; shown when inside a subfolder -->
+  <nav id="breadcrumb" aria-label="Folder path" hidden></nav>
+
+  <main>
+    <!-- Tile grid — filled by newtab.js -->
+    <div id="bookmark-grid" role="list" aria-label="QuickDial bookmarks"></div>
+
+    <!-- Empty-state message — shown when the current folder has no children -->
+    <div id="empty-state" hidden>
+      <div class="empty-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9
+                   2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+        </svg>
+      </div>
+      <p>Your <strong>QuickDial</strong> folder is empty.</p>
+      <p class="empty-hint">
+        Open the Bookmark Manager and add bookmarks or subfolders
+        to the <em>QuickDial</em> folder.
+      </p>
+      <button id="open-manager-btn">Open Bookmark Manager</button>
+    </div>
+  </main>
+
+  <script src="newtab.js"></script>
+  <script src="clock-widget.js"></script>
+</body>
+</html>

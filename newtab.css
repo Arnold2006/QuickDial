@@ -1,0 +1,273 @@
+/* =============================================================================
+   newtab.css — QuickDial
+   Dark-navy minimalist theme matching the visual brief.
+   ============================================================================= */
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure [hidden] always wins even when display is set elsewhere */
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: #131a2e;
+  color: #e0e6f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               Oxygen, Ubuntu, Cantarell, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem 3rem;
+  min-height: 100vh;
+}
+
+/* ── Breadcrumb ─────────────────────────────────────────────────────────────── */
+#breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  align-self: flex-start;
+  margin-bottom: 1.25rem;
+  max-width: 960px;
+  width: 100%;
+}
+
+.breadcrumb-item {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+  cursor: pointer;
+  color: #7ca3e0;
+  line-height: 1.4;
+}
+
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
+  background-color: rgba(124, 163, 224, 0.15);
+  outline: none;
+}
+
+.breadcrumb-current {
+  color: #c8d6ec;
+  cursor: default;
+}
+
+.breadcrumb-sep {
+  color: #3d526e;
+  font-size: 1.1rem;
+  user-select: none;
+  padding: 0 0.1rem;
+}
+
+/* ── Tile grid ──────────────────────────────────────────────────────────────── */
+#bookmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  max-width: 960px;
+}
+
+/* ── Individual tile ────────────────────────────────────────────────────────── */
+.tile {
+  background-color: #1c2a47;
+  border-radius: 18px;
+  padding: 1.25rem 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  min-height: 130px;
+  user-select: none;
+  outline: none;
+  position: relative;
+}
+
+.tile:hover,
+.tile:focus-visible {
+  transform: translateY(-4px);
+  filter: brightness(1.25);
+}
+
+/* ── Bookmark tile: favicon badge ───────────────────────────────────────────── */
+.favicon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #263652;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.favicon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+/* Fallback state: colored circle with initial letter */
+.favicon-wrapper.favicon-fallback {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ── Folder tile: folder icon ───────────────────────────────────────────────── */
+.folder-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7ca3e0;
+  flex-shrink: 0;
+}
+
+.folder-icon-wrapper svg {
+  width: 42px;
+  height: 42px;
+  fill: currentColor;
+}
+
+/* ── Tile title ─────────────────────────────────────────────────────────────── */
+.tile-title {
+  font-size: 0.75rem;
+  color: #96afc8;
+  text-align: center;
+  /* Two-line clamp */
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  line-height: 1.35;
+  width: 100%;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────────── */
+#empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 5rem;
+  color: #556078;
+  text-align: center;
+  max-width: 340px;
+}
+
+.empty-icon svg {
+  width: 56px;
+  height: 56px;
+  fill: #2a3d5e;
+}
+
+#empty-state p {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: #7080a0;
+}
+
+#empty-state .empty-hint {
+  font-size: 0.875rem;
+  color: #4a5a78;
+}
+
+#open-manager-btn {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.5rem;
+  background-color: #1c2a47;
+  color: #7ca3e0;
+  border: 1px solid #2d4070;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+#open-manager-btn:hover,
+#open-manager-btn:focus-visible {
+  background-color: #253656;
+  border-color: #4a7abf;
+  color: #aac4e8;
+  outline: none;
+}
+
+/* ── Clock widget ───────────────────────────────────────────────────────────── */
+#clock-widget {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  background-color: #1c2a47;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 1rem 1.5rem;
+  overflow: hidden;
+  z-index: 100;
+  /* Size is set by clock-widget.js */
+}
+
+/* Font sizes scale with --clock-scale (set by JS on resize) */
+.clock-time {
+  font-size: calc(2rem * var(--clock-scale, 1));
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: #e0e6f0;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.clock-date {
+  font-size: calc(0.68rem * var(--clock-scale, 1));
+  color: #556888;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ── Resize handle (bottom-right corner of clock widget) ───────────────────── */
+.clock-resize-handle {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  /* Dotted-grid pattern to hint at drag-to-resize */
+  background-image: radial-gradient(
+    circle,
+    rgba(124, 163, 224, 0.65) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  transition: opacity 0.15s;
+  opacity: 0.5;
+}
+
+#clock-widget:hover .clock-resize-handle {
+  opacity: 1;
+}

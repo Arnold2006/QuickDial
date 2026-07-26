@@ -183,8 +183,8 @@ function buildFaviconBadge(node) {
 
   try {
     const pageUrl = new URL(node.url).href;
-    // Chrome's internal favicon endpoint also supports local-network hosts.
-    img.src = `chrome://favicon2/?size=64&scale_factor=1x&page_url=${encodeURIComponent(pageUrl)}`;
+    // Use the extension-supported favicon endpoint (requires "favicon" permission).
+    img.src = chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(pageUrl)}&size=64`);
   } catch {
     img.src = ''; // malformed URL → triggers onerror immediately
   }

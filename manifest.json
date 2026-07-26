@@ -3,7 +3,7 @@
   "name": "QuickDial",
   "version": "1.0.0",
   "description": "A minimalist new-tab quick-dial page that shows your bookmarks as a tile grid.",
-  "permissions": ["bookmarks", "storage"],
+  "permissions": ["bookmarks", "favicon", "storage"],
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },

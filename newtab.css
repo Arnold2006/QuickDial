@@ -271,3 +271,203 @@ body {
 #clock-widget:hover .clock-resize-handle {
   opacity: 1;
 }
+
+/* ── TODO widget ────────────────────────────────────────────────────────────── */
+#todo-widget {
+  position: fixed;
+  right: 1.5rem;
+  background-color: #1c2a47;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  /* Width, height and top are set by todo-widget.js */
+}
+
+.todo-header {
+  font-size: calc(0.6rem * var(--todo-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #556888;
+  text-transform: uppercase;
+  padding: 0.7rem 1rem 0.5rem;
+  border-bottom: 1px solid #243452;
+  flex-shrink: 0;
+}
+
+/* Scrollable task list */
+.todo-list {
+  list-style: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.3rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: #2d4070 transparent;
+}
+
+.todo-list::-webkit-scrollbar { width: 4px; }
+.todo-list::-webkit-scrollbar-track { background: transparent; }
+.todo-list::-webkit-scrollbar-thumb {
+  background-color: #2d4070;
+  border-radius: 4px;
+}
+
+/* Individual task row */
+.todo-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.28rem 0.6rem 0.28rem 0.5rem;
+  transition: background-color 0.1s;
+}
+
+.todo-item:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Markdown toggle prefix — "- [ ]" / "- [x]" — IS the checkbox */
+.todo-md-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: calc(0.72rem * var(--todo-scale, 1));
+  color: #4a7abf;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1.5;
+  white-space: nowrap;
+  transition: color 0.12s;
+  user-select: none;
+}
+
+.todo-md-toggle:hover {
+  color: #7ca3e0;
+}
+
+.todo-done .todo-md-toggle {
+  color: #2d4a70;
+}
+
+/* Inline-editable task text */
+.todo-text {
+  flex: 1;
+  font-size: calc(0.8rem * var(--todo-scale, 1));
+  color: #c8d6ec;
+  line-height: 1.45;
+  outline: none;
+  word-break: break-word;
+  min-width: 0;
+  cursor: text;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.todo-text:focus {
+  background-color: rgba(124, 163, 224, 0.1);
+}
+
+/* Strikethrough + dim for completed tasks */
+.todo-done .todo-text {
+  text-decoration: line-through;
+  color: #445570;
+}
+
+/* Delete button — revealed on row hover */
+.todo-delete-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #3d526e;
+  font-size: calc(0.95rem * var(--todo-scale, 1));
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  opacity: 0;
+  transition: color 0.1s, opacity 0.1s;
+  font-family: inherit;
+}
+
+.todo-item:hover .todo-delete-btn {
+  opacity: 1;
+}
+
+.todo-delete-btn:hover {
+  color: #e05a6a;
+}
+
+/* Add-task row */
+.todo-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.6rem 0.5rem;
+  border-top: 1px solid #243452;
+  flex-shrink: 0;
+}
+
+.todo-input {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #2d4070;
+  color: #c8d6ec;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: calc(0.72rem * var(--todo-scale, 1));
+  padding: 0.2rem 0.1rem;
+  outline: none;
+  min-width: 0;
+  transition: border-color 0.15s;
+}
+
+.todo-input::placeholder {
+  color: #2d4a6e;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.todo-input:focus {
+  border-bottom-color: #4a7abf;
+}
+
+.todo-add-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #7ca3e0;
+  font-size: calc(1.2rem * var(--todo-scale, 1));
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.1rem;
+  border-radius: 4px;
+  transition: color 0.1s;
+  font-family: inherit;
+}
+
+.todo-add-btn:hover {
+  color: #aac4e8;
+}
+
+/* ── Resize handle (bottom-right corner of TODO widget) ─────────────────────── */
+.todo-resize-handle {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  background-image: radial-gradient(
+    circle,
+    rgba(124, 163, 224, 0.65) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  transition: opacity 0.15s;
+  opacity: 0.5;
+}
+
+#todo-widget:hover .todo-resize-handle {
+  opacity: 1;
+}

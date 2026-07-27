@@ -34,7 +34,7 @@ const CLOCK_GAP     = 12; // px between clock bottom and todo top
 function parseMarkdown(md) {
   if (!md || !md.trim()) return [];
   return md.split('\n')
-    .map(line => line.match(/^- \[([ xX])\] (.+)$/))
+    .map(line => line.match(/^- \[([ xX])\] (.*)$/))
     .filter(Boolean)
     .map(m => ({ done: m[1].toLowerCase() === 'x', text: m[2] }));
 }
@@ -99,14 +99,17 @@ function serializeItems(items) {
   // ── Position below clock ────────────────────────────────────────────────────
 
   function positionBelowClock() {
-    const cw   = document.getElementById('clock-widget');
-    const top  = cw ? cw.getBoundingClientRect().bottom + CLOCK_GAP : 160;
+    const cw  = document.getElementById('clock-widget');
+    const top = cw ? cw.getBoundingClientRect().bottom + CLOCK_GAP : 160;
     widget.style.top = `${top}px`;
   }
 
+  let clockResizeObs = null;
+
   function attachClockObserver(cw) {
     positionBelowClock();
-    new ResizeObserver(positionBelowClock).observe(cw);
+    clockResizeObs = new ResizeObserver(positionBelowClock);
+    clockResizeObs.observe(cw);
   }
 
   const clockEl = document.getElementById('clock-widget');
@@ -122,77 +125,91 @@ function serializeItems(items) {
     window.addEventListener('beforeunload', () => obs.disconnect(), { once: true });
   }
 
-  // ── Render items ─────────────────────────────────────────────────────────────
+  // ── Build and render items ────────────────────────────────────────────────────
+
+  /**
+   * Creates a single <li> element for an item.  All event handlers update the
+   * DOM in-place so the whole list never needs to be rebuilt for a toggle or
+   * text edit — only structural changes (add / delete) touch the DOM.
+   */
+  function buildItemEl(item) {
+    const li = document.createElement('li');
+    li.className = 'todo-item' + (item.done ? ' todo-done' : '');
+
+    // The markdown toggle prefix — clicking it toggles [ ] ↔ [x].
+    const toggle = document.createElement('button');
+    toggle.className = 'todo-md-toggle';
+    toggle.setAttribute('aria-label', item.done ? 'Mark as pending' : 'Mark as done');
+    toggle.setAttribute('aria-pressed', String(item.done));
+    toggle.textContent = item.done ? '- [x]' : '- [ ]';
+    toggle.addEventListener('click', () => {
+      item.done = !item.done;
+      toggle.textContent = item.done ? '- [x]' : '- [ ]';
+      toggle.setAttribute('aria-pressed', String(item.done));
+      toggle.setAttribute('aria-label', item.done ? 'Mark as pending' : 'Mark as done');
+      li.classList.toggle('todo-done', item.done);
+      save();
+    });
+
+    // Inline-editable task text.
+    const span = document.createElement('span');
+    span.className = 'todo-text';
+    span.contentEditable = 'true';
+    span.spellcheck = false;
+    span.textContent = item.text;
+
+    span.addEventListener('paste', e => {
+      e.preventDefault();
+      const plain = (e.clipboardData || window.clipboardData)
+        .getData('text/plain').replace(/[\r\n]+/g, ' ').trim();
+      // Insert plain text at the current caret position using the Selection API.
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(plain));
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+
+    span.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+    });
+
+    span.addEventListener('blur', () => {
+      const t = span.textContent.trim();
+      if (t) {
+        item.text = t;
+        save();
+      } else {
+        // Remove the item if its text was cleared entirely.
+        const idx = items.indexOf(item);
+        if (idx !== -1) { items.splice(idx, 1); save(); }
+        li.remove();
+      }
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'todo-delete-btn';
+    delBtn.setAttribute('aria-label', 'Delete task');
+    delBtn.title = 'Delete';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', () => {
+      const idx = items.indexOf(item);
+      if (idx !== -1) { items.splice(idx, 1); save(); }
+      li.remove();
+    });
+
+    li.appendChild(toggle);
+    li.appendChild(span);
+    li.appendChild(delBtn);
+    return li;
+  }
 
   function renderItems() {
     list.innerHTML = '';
-
-    items.forEach((item, idx) => {
-      const li = document.createElement('li');
-      li.className = 'todo-item' + (item.done ? ' todo-done' : '');
-
-      // The markdown toggle prefix — clicking it toggles [ ] ↔ [x].
-      const toggle = document.createElement('button');
-      toggle.className = 'todo-md-toggle';
-      toggle.setAttribute('aria-label', item.done ? 'Mark as pending' : 'Mark as done');
-      toggle.setAttribute('aria-pressed', String(item.done));
-      toggle.textContent = item.done ? '- [x]' : '- [ ]';
-      toggle.addEventListener('click', () => {
-        item.done = !item.done;
-        toggle.textContent = item.done ? '- [x]' : '- [ ]';
-        toggle.setAttribute('aria-pressed', String(item.done));
-        toggle.setAttribute('aria-label', item.done ? 'Mark as pending' : 'Mark as done');
-        li.classList.toggle('todo-done', item.done);
-        save();
-      });
-
-      // Inline-editable task text.
-      const span = document.createElement('span');
-      span.className = 'todo-text';
-      span.contentEditable = 'true';
-      span.spellcheck = false;
-      span.textContent = item.text;
-
-      span.addEventListener('paste', e => {
-        e.preventDefault();
-        const plain = (e.clipboardData || window.clipboardData)
-          .getData('text/plain').replace(/[\r\n]+/g, ' ').trim();
-        document.execCommand('insertText', false, plain);
-      });
-
-      span.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
-      });
-
-      span.addEventListener('blur', () => {
-        const t = span.textContent.trim();
-        if (t) {
-          item.text = t;
-          save();
-        } else {
-          // Remove the item if the text was cleared.
-          items.splice(idx, 1);
-          save();
-          renderItems();
-        }
-      });
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'todo-delete-btn';
-      delBtn.setAttribute('aria-label', 'Delete task');
-      delBtn.title = 'Delete';
-      delBtn.textContent = '×';
-      delBtn.addEventListener('click', () => {
-        items.splice(idx, 1);
-        save();
-        renderItems();
-      });
-
-      li.appendChild(toggle);
-      li.appendChild(span);
-      li.appendChild(delBtn);
-      list.appendChild(li);
-    });
+    items.forEach(item => list.appendChild(buildItemEl(item)));
   }
 
   // ── Add item ──────────────────────────────────────────────────────────────────
@@ -202,15 +219,16 @@ function serializeItems(items) {
     if (!raw) return;
 
     // Accept full markdown syntax ("- [ ] text" / "- [x] text") or plain text.
-    const mdMatch = raw.match(/^-\s*\[([ xX])\]\s+(.+)$/);
-    if (mdMatch) {
-      items.push({ done: mdMatch[1].toLowerCase() === 'x', text: mdMatch[2].trim() });
-    } else {
-      items.push({ done: false, text: raw });
-    }
+    const mdMatch = raw.match(/^-\s*\[([ xX])\]\s+(.*)$/);
+    const item = mdMatch
+      ? { done: mdMatch[1].toLowerCase() === 'x', text: mdMatch[2].trim() }
+      : { done: false, text: raw };
 
+    if (!item.text) return; // skip if text resolves to empty
+
+    items.push(item);
     save();
-    renderItems();
+    list.appendChild(buildItemEl(item));
     addInput.value = '';
     addInput.focus();
   }
@@ -225,7 +243,7 @@ function serializeItems(items) {
   // ── Resize-drag logic ─────────────────────────────────────────────────────────
 
   let dragging = false;
-  let dragStartX, dragStartY, dragStartW, dragStartH;
+  let dragStartX = 0, dragStartY = 0, dragStartW = 0, dragStartH = 0;
 
   resizeHandle.addEventListener('mousedown', e => {
     dragging   = true;
@@ -256,6 +274,7 @@ function serializeItems(items) {
   window.addEventListener('beforeunload', () => {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
+    if (clockResizeObs) clockResizeObs.disconnect();
   }, { once: true });
 })();
 

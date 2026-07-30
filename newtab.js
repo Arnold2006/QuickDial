@@ -34,6 +34,35 @@
 let quickDialRootId = null;
 
 /**
+ * Per-bookmark "open in new tab" preference.
+ * Key: bookmark node ID (string). Value: true → new tab, false → same tab.
+ * Default (missing key) is true (new tab).
+ * Persisted in localStorage under 'quickdial_newTab'.
+ */
+let newTabPrefs = {};
+
+function loadNewTabPrefs() {
+  try {
+    newTabPrefs = JSON.parse(localStorage.getItem('quickdial_newTab') || '{}');
+  } catch {
+    newTabPrefs = {};
+  }
+}
+
+function saveNewTabPrefs() {
+  localStorage.setItem('quickdial_newTab', JSON.stringify(newTabPrefs));
+}
+
+function getNewTabPref(id) {
+  return id in newTabPrefs ? newTabPrefs[id] : true;
+}
+
+function setNewTabPref(id, value) {
+  newTabPrefs[id] = value;
+  saveNewTabPrefs();
+}
+
+/**
  * Navigation stack: array of { id: string, title: string }.
  * Index 0 is always the QuickDial root; last entry is the current folder.
  * NOTE: Not persisted — each new tab starts at the root (intentional).
@@ -50,6 +79,7 @@ function currentFolderId() {
 
 async function init() {
   try {
+    loadNewTabPrefs();
     const root = await findOrCreateQuickDialFolder();
     quickDialRootId = root.id;
     currentPath = [{ id: root.id, title: 'QuickDial' }];
@@ -150,9 +180,37 @@ function createTile(node) {
   titleEl.textContent = node.title || '(untitled)';
   tile.appendChild(titleEl);
 
+  // "Open in new tab" checkbox overlay — bookmark tiles only.
+  if (node.url) {
+    const label = document.createElement('label');
+    label.className = 'new-tab-checkbox-label';
+    label.title = 'Open in new tab';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'new-tab-checkbox';
+    checkbox.checked = getNewTabPref(node.id);
+    checkbox.setAttribute('aria-label', 'Open in new tab');
+
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      setNewTabPref(node.id, checkbox.checked);
+    });
+
+    // Prevent the label click from bubbling up and triggering the tile click.
+    label.addEventListener('click', (e) => e.stopPropagation());
+
+    label.appendChild(checkbox);
+    tile.appendChild(label);
+  }
+
   const activate = () => {
     if (node.url) {
-      window.open(node.url, '_blank', 'noopener,noreferrer');
+      if (getNewTabPref(node.id)) {
+        window.open(node.url, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = node.url;
+      }
     } else {
       // "Folder-navigation drill-in" — push folder onto path and re-render.
       currentPath.push({ id: node.id, title: node.title });

@@ -104,7 +104,33 @@ body {
   filter: brightness(1.25);
 }
 
-/* ── Bookmark tile: favicon badge ───────────────────────────────────────────── */
+/* ── "Open in new tab" checkbox overlay (bookmark tiles only) ───────────────── */
+.new-tab-checkbox-label {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.tile:hover .new-tab-checkbox-label,
+.tile:focus-within .new-tab-checkbox-label {
+  opacity: 1;
+}
+
+.new-tab-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: #7ca3e0;
+}
+
+
 .favicon-wrapper {
   width: 56px;
   height: 56px;

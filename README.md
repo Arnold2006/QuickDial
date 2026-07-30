@@ -9,6 +9,7 @@ A minimalist **new-tab** speed-dial extension for Chrome (Manifest V3) inspired 
 - **Auto-created root folder** — on first run the extension creates a *QuickDial* folder in your Bookmarks Bar automatically.
 - **Sync** — bookmarks stay in sync via Chrome Sync; the grid updates live when you add/move/remove bookmarks.
 - **Resizable clock widget** — a digital clock (HH:MM:SS + full date) fixed in the top-right corner; drag its bottom-right corner to resize. Size is saved across sessions.
+- **TODO widget** — a resizable markdown-style checklist widget fixed below the clock; items persist across sessions via `chrome.storage.local`.
 - **No build step** — plain HTML/CSS/JS, load unpacked in seconds.
 
 ---
@@ -58,14 +59,28 @@ A minimalist **new-tab** speed-dial extension for Chrome (Manifest V3) inspired 
 
 ---
 
+## TODO widget
+
+- Displayed directly below the clock widget on every new tab.
+- Items are stored and shown in standard **markdown checklist syntax** (`- [ ] task` / `- [x] task`).
+- **Toggle**: click the `- [ ]` / `- [x]` prefix to mark an item done or pending.
+- **Edit**: click the task text to edit it inline; press **Enter** or click away to confirm. Clearing the text entirely removes the item.
+- **Add**: type in the input field (plain text or full markdown syntax) and press **Enter** or click **+**.
+- **Delete**: click the **×** button on any item.
+- **Resize**: drag the bottom-right handle; size is saved via `chrome.storage.local`.
+- All items persist across sessions (stored as a markdown string in `chrome.storage.local`).
+
+---
+
 ## File structure
 
 ```
-manifest.json        — MV3 manifest (permissions: bookmarks, storage)
+manifest.json        — MV3 manifest (permissions: bookmarks, favicon, storage)
 newtab.html          — New-tab page markup
 newtab.css           — All styles (dark navy theme)
 newtab.js            — Bookmark grid, folder navigation, breadcrumb
 clock-widget.js      — Digital clock + resize logic
+todo-widget.js       — Markdown TODO list widget + resize logic
 icons/
   icon16.png
   icon48.png
@@ -79,6 +94,7 @@ icons/
 | Permission   | Why                                                          |
 |--------------|--------------------------------------------------------------|
 | `bookmarks`  | Read the *QuickDial* folder; create it if missing; listen for changes |
-| `storage`    | Persist the clock widget's size across sessions              |
+| `favicon`    | Load site favicons via the `/_favicon/` endpoint             |
+| `storage`    | Persist the clock widget's size and TODO items across sessions |
 
 No other permissions are requested.

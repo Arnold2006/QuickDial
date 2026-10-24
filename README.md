@@ -6,6 +6,8 @@ A minimalist **new-tab** speed-dial extension for Chrome (Manifest V3) inspired 
 
 - **Bookmark-driven tiles** — displays all children of your *QuickDial* bookmarks folder as a responsive tile grid.
 - **Subfolder navigation** — click a folder tile to drill into it; a breadcrumb trail lets you jump back to any ancestor (including the root) instantly.
+- **Drag to reorder** — drag any tile within the current folder; a vertical marker shows where it will land.
+- **Move into a subfolder** — drop a bookmark onto a folder tile to move it into that folder; the folder highlights while hovered.
 - **Auto-created root folder** — on first run the extension creates a *QuickDial* folder in your Bookmarks Bar automatically.
 - **Sync** — bookmarks stay in sync via Chrome Sync; the grid updates live when you add/move/remove bookmarks.
 - **Resizable clock widget** — a digital clock (HH:MM:SS + full date) fixed in the top-right corner; drag its bottom-right corner to resize. Size is saved across sessions.
@@ -50,6 +52,14 @@ A minimalist **new-tab** speed-dial extension for Chrome (Manifest V3) inspired 
 
 ---
 
+## Reordering and moving tiles
+
+- **Reorder** — drag a tile and drop it between two tiles. The bright vertical marker shows the insertion point. This changes the real bookmark order, so it is reflected in the Bookmark Manager and syncs through Chrome Sync or Brave Sync.
+- **Move into a folder** — drag a bookmark onto a folder tile; the folder highlights and the bookmark moves to the end of that folder. Dragging a folder onto another folder reorders it instead.
+- Clicking still works normally: a drag never opens the tile it moved.
+
+---
+
 ## Clock widget
 
 - Displayed in the top-right corner on every new tab.
@@ -78,7 +88,7 @@ A minimalist **new-tab** speed-dial extension for Chrome (Manifest V3) inspired 
 manifest.json        — MV3 manifest (permissions: bookmarks, favicon, storage)
 newtab.html          — New-tab page markup
 newtab.css           — All styles (dark navy theme)
-newtab.js            — Bookmark grid, folder navigation, breadcrumb
+newtab.js            — Bookmark grid, folder navigation, breadcrumb, drag/drop
 clock-widget.js      — Digital clock + resize logic
 todo-widget.js       — Markdown TODO list widget + resize logic
 icons/

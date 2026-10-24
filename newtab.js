@@ -24,6 +24,13 @@
  *    chrome.bookmarks.getChildren(folderId) returns all direct children.
  *    URL nodes → bookmark tiles (favicon + title).
  *    Folder nodes → folder tiles (SVG icon + title).
+ *
+ * 4. Drag-and-drop:
+ *    Dragging a tile reorders it within the current folder.  Dropping a
+ *    bookmark onto a folder tile moves it into that folder.  Both gestures
+ *    end in chrome.bookmarks.move(), so the real bookmark tree changes.
+ *    A drop is only ever rendered from chrome.bookmarks.getChildren(), never
+ *    from optimistic DOM moves, which keeps the grid in sync with the tree.
  */
 
 'use strict';
@@ -69,6 +76,22 @@ function setNewTabPref(id, value) {
  */
 let currentPath = [];
 
+/**
+ * Tile drag-and-drop state.  `draggedNode`/`draggedTile` are set on
+ * dragstart and cleared on dragend.  `suppressClickUntil` swallows the click
+ * some browsers emit after a drag finishes.
+ */
+let draggedNode = null;
+let draggedTile = null;
+let suppressClickUntil = 0;
+
+/**
+ * Monotonic render token.  chrome.bookmarks.onMoved also fires for our own
+ * move() calls, so a drop and the event listener can both start a render;
+ * only the newest render is allowed to paint.
+ */
+let renderGeneration = 0;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function currentFolderId() {
@@ -94,6 +117,12 @@ async function init() {
     chrome.bookmarks.onRemoved.addListener(renderGrid);
     chrome.bookmarks.onChanged.addListener(renderGrid);
     chrome.bookmarks.onMoved.addListener(renderGrid);
+    chrome.bookmarks.onChildrenReordered.addListener(renderGrid);
+
+    const grid = document.getElementById('bookmark-grid');
+    grid.addEventListener('dragover', handleGridDragOver);
+    grid.addEventListener('dragleave', handleGridDragLeave);
+    grid.addEventListener('drop', handleGridDrop);
 
     await renderGrid();
   } catch (err) {
@@ -134,6 +163,7 @@ async function renderGrid() {
   const folderId = currentFolderId();
   if (!folderId) return;
 
+  const generation = ++renderGeneration;
   const grid      = document.getElementById('bookmark-grid');
   const emptyState = document.getElementById('empty-state');
 
@@ -144,6 +174,9 @@ async function renderGrid() {
   updateBreadcrumb();
 
   const children = await chrome.bookmarks.getChildren(folderId);
+
+  // A newer render started while this one was awaiting storage; let it win.
+  if (generation !== renderGeneration) return;
 
   if (children.length === 0) {
     grid.hidden      = true;
@@ -172,6 +205,8 @@ function createTile(node) {
   tile.setAttribute('role', 'listitem');
   tile.setAttribute('tabindex', '0');
   tile.setAttribute('aria-label', node.title || '(untitled)');
+  tile.dataset.nodeId = node.id;
+  tile.draggable = true;
 
   tile.appendChild(node.url ? buildFaviconBadge(node) : buildFolderIcon());
 
@@ -205,6 +240,13 @@ function createTile(node) {
   }
 
   const activate = () => {
+    // Drag-and-drop ends with a click in some browsers; don't open the tile
+    // that was just moved.  Also ignore clicks while a drag is in flight.
+    if (draggedTile || performance.now() < suppressClickUntil) {
+      suppressClickUntil = 0;
+      return;
+    }
+
     if (node.url) {
       if (getNewTabPref(node.id)) {
         window.open(node.url, '_blank', 'noopener,noreferrer');
@@ -226,6 +268,9 @@ function createTile(node) {
     }
   });
 
+  tile.addEventListener('dragstart', (e) => handleDragStart(e, node, tile));
+  tile.addEventListener('dragend', handleDragEnd);
+
   return tile;
 }
 
@@ -238,6 +283,7 @@ function buildFaviconBadge(node) {
   img.className = 'favicon';
   img.alt = '';
   img.setAttribute('loading', 'lazy');
+  img.draggable = false;
 
   try {
     const pageUrl = new URL(node.url).href;
@@ -283,6 +329,167 @@ function deterministicHsl(str) {
   }
   const hue = ((hash % 360) + 360) % 360;
   return `hsl(${hue}, 45%, 40%)`;
+}
+
+// ── Drag-and-drop: reorder + move into a subfolder ────────────────────────────
+
+function handleDragStart(e, node, tile) {
+  draggedNode = node;
+  draggedTile = tile;
+  suppressClickUntil = 0;
+
+  tile.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', node.id);
+}
+
+function handleDragEnd() {
+  if (draggedTile) draggedTile.classList.remove('dragging');
+  clearDropIndicators();
+
+  if (draggedNode) {
+    // Swallow the click that can follow a drag/drop gesture.
+    suppressClickUntil = performance.now() + 300;
+  }
+
+  draggedNode = null;
+  draggedTile = null;
+}
+
+function clearDropIndicators() {
+  document
+    .querySelectorAll('.tile.drop-before, .tile.drop-after, .tile.drop-into')
+    .forEach((el) => el.classList.remove('drop-before', 'drop-after', 'drop-into'));
+}
+
+/**
+ * Works out what a drop at the current pointer position would do.
+ *
+ * Returns { type: 'folder', folderId, tile } when a bookmark is over a
+ * subfolder tile, { type: 'reorder', index, tile, before } for an insertion
+ * gap, or null for no valid move.
+ *
+ * `index` is the insertion gap in the current child list.  Chrome's move()
+ * adjusts the index itself when an item moves down within the same folder,
+ * so passing the gap directly yields the expected final order.
+ */
+function resolveDropIntent(e, grid) {
+  if (!draggedNode || !draggedTile) return null;
+
+  const tiles = Array.from(grid.querySelectorAll('.tile'));
+  const draggedIndex = tiles.indexOf(draggedTile);
+  if (draggedIndex === -1) return null;
+  const hoveredTile = e.target.closest?.('.tile');
+
+  // A bookmark dropped on a subfolder moves into it.  Folder-into-folder
+  // moves are deliberately not offered, to avoid creating cycles.
+  if (hoveredTile && hoveredTile !== draggedTile && draggedNode.url
+      && hoveredTile.classList.contains('folder-tile')) {
+    return {
+      type: 'folder',
+      folderId: hoveredTile.dataset.nodeId,
+      tile: hoveredTile,
+    };
+  }
+
+  // No insertion gap while the pointer is still over the dragged tile.
+  const draggedRect = draggedTile.getBoundingClientRect();
+  if (e.clientX >= draggedRect.left && e.clientX <= draggedRect.right
+      && e.clientY >= draggedRect.top && e.clientY <= draggedRect.bottom) {
+    return null;
+  }
+
+  const target = hoveredTile && hoveredTile !== draggedTile
+    ? hoveredTile
+    : nearestTile(tiles, draggedTile, e.clientX, e.clientY);
+  if (!target) return null;
+
+  // Over a tile, the left/right half picks the gap; above or below it, the
+  // vertical midpoint does.  This stays intuitive in a wrapping grid.
+  const rect = target.getBoundingClientRect();
+  const inRow = e.clientY >= rect.top && e.clientY <= rect.bottom;
+  const before = inRow
+    ? e.clientX < rect.left + rect.width / 2
+    : e.clientY < rect.top + rect.height / 2;
+  const index = tiles.indexOf(target) + (before ? 0 : 1);
+
+  // Dropping either side of the dragged tile is a no-op.
+  if (index === draggedIndex || index === draggedIndex + 1) return null;
+
+  return { type: 'reorder', index, tile: target, before };
+}
+
+function nearestTile(tiles, exclude, x, y) {
+  let nearest = null;
+  let nearestDistance = Infinity;
+
+  for (const tile of tiles) {
+    if (tile === exclude) continue;
+
+    const rect = tile.getBoundingClientRect();
+    const dx = x - (rect.left + rect.width / 2);
+    const dy = y - (rect.top + rect.height / 2);
+    const distance = dx * dx + dy * dy;
+
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = tile;
+    }
+  }
+
+  return nearest;
+}
+
+function applyDropIntent(intent) {
+  clearDropIndicators();
+  if (!intent) return;
+
+  if (intent.type === 'folder') {
+    intent.tile.classList.add('drop-into');
+  } else {
+    intent.tile.classList.add(intent.before ? 'drop-before' : 'drop-after');
+  }
+}
+
+function handleGridDragOver(e) {
+  if (!draggedNode) return;
+
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  applyDropIntent(resolveDropIntent(e, e.currentTarget));
+}
+
+function handleGridDragLeave(e) {
+  if (!draggedNode) return;
+  if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+
+  clearDropIndicators();
+}
+
+async function handleGridDrop(e) {
+  if (!draggedNode) return;
+
+  e.preventDefault();
+
+  const node = draggedNode;
+  const intent = resolveDropIntent(e, e.currentTarget);
+  clearDropIndicators();
+
+  if (!intent) return;
+
+  try {
+    if (intent.type === 'folder') {
+      // No index: append to the end of the destination folder.
+      await chrome.bookmarks.move(node.id, { parentId: intent.folderId });
+    } else {
+      await chrome.bookmarks.move(node.id, { index: intent.index });
+    }
+  } catch (err) {
+    console.error('[QuickDial] Could not move bookmark:', err);
+    return;
+  }
+
+  await renderGrid();
 }
 
 // ── Breadcrumb ("folder-navigation return-to-root logic") ─────────────────────

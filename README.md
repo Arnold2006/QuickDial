@@ -87,7 +87,7 @@ A minimalist **new-tab** speed-dial extension for Chrome (Manifest V3) inspired 
 ```
 manifest.json        — MV3 manifest (permissions: bookmarks, favicon, storage)
 newtab.html          — New-tab page markup
-newtab.css           — All styles (dark navy theme)
+newtab.css           — All styles (black, dark-gray and gold theme)
 newtab.js            — Bookmark grid, folder navigation, breadcrumb, drag/drop
 clock-widget.js      — Digital clock + resize logic
 todo-widget.js       — Markdown TODO list widget + resize logic

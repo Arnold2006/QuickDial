@@ -64,6 +64,12 @@ function getNewTabPref(id) {
   return id in newTabPrefs ? newTabPrefs[id] : true;
 }
 
+/** Applies the per-tile preference to a real link element. */
+function applyNewTabPref(link, openInNewTab) {
+  link.target = openInNewTab ? '_blank' : '_self';
+  link.rel = openInNewTab ? 'noopener noreferrer' : '';
+}
+
 function setNewTabPref(id, value) {
   newTabPrefs[id] = value;
   saveNewTabPrefs();
@@ -113,11 +119,14 @@ async function init() {
     });
 
     // Keep the grid in sync when bookmarks change elsewhere in Chrome.
-    chrome.bookmarks.onCreated.addListener(renderGrid);
-    chrome.bookmarks.onRemoved.addListener(renderGrid);
-    chrome.bookmarks.onChanged.addListener(renderGrid);
-    chrome.bookmarks.onMoved.addListener(renderGrid);
-    chrome.bookmarks.onChildrenReordered.addListener(renderGrid);
+    // Wrapped so the event argument is not mistaken for render options and
+    // so background changes never steal focus from another widget.
+    const onBookmarksChanged = () => renderGrid();
+    chrome.bookmarks.onCreated.addListener(onBookmarksChanged);
+    chrome.bookmarks.onRemoved.addListener(onBookmarksChanged);
+    chrome.bookmarks.onChanged.addListener(onBookmarksChanged);
+    chrome.bookmarks.onMoved.addListener(onBookmarksChanged);
+    chrome.bookmarks.onChildrenReordered.addListener(onBookmarksChanged);
 
     const grid = document.getElementById('bookmark-grid');
     grid.addEventListener('dragover', handleGridDragOver);
@@ -159,64 +168,166 @@ async function findOrCreateQuickDialFolder() {
 
 // ── Grid rendering ────────────────────────────────────────────────────────────
 
-async function renderGrid() {
-  const folderId = currentFolderId();
-  if (!folderId) return;
+/**
+ * Returns the children of the folder at the end of currentPath.
+ *
+ * A folder can disappear while it is being viewed (deleted in the Bookmark
+ * Manager, or removed by sync).  chrome.bookmarks.getChildren() then rejects
+ * with "Invalid bookmark", so the path is trimmed back one ancestor at a time
+ * until a folder that still exists is found.  If even the QuickDial root is
+ * gone the error is rethrown for renderGrid() to recover from.
+ */
+async function childrenOfCurrentFolder() {
+  while (currentPath.length > 1) {
+    try {
+      return await chrome.bookmarks.getChildren(currentFolderId());
+    } catch (err) {
+      console.warn('[QuickDial] Folder no longer exists, moving up one level:', err);
+      currentPath.pop();
+    }
+  }
 
+  if (!currentPath.length) throw new Error('QuickDial path is empty');
+  return chrome.bookmarks.getChildren(currentFolderId());
+}
+
+/**
+ * Renders the grid for the current folder.
+ *
+ * @param {{ focusFirst?: boolean }} [options] focusFirst puts keyboard focus on
+ *   the first tile (or the empty-state button) after the render.  Focus is also
+ *   restored when the grid held it before rendering, so a bookmark change that
+ *   rebuilds the grid doesn't drop the user back to the top of the document.
+ */
+async function renderGrid({ focusFirst = false } = {}) {
   const generation = ++renderGeneration;
-  const grid      = document.getElementById('bookmark-grid');
+  const grid       = document.getElementById('bookmark-grid');
   const emptyState = document.getElementById('empty-state');
+
+  // Remember where focus was before the tiles are replaced.
+  const hadFocus = grid.contains(document.activeElement);
+  const focusedId = hadFocus
+    ? document.activeElement.closest('.tile')?.dataset.nodeId ?? null
+    : null;
 
   // Clear previous tiles.
   grid.innerHTML = '';
 
-  // Update breadcrumb before potentially early-returning.
-  updateBreadcrumb();
+  let shouldFocus = focusFirst;
+  let children;
 
-  const children = await chrome.bookmarks.getChildren(folderId);
+  try {
+    children = await childrenOfCurrentFolder();
+  } catch (err) {
+    // The QuickDial root itself is gone — recreate it and reopen at the root.
+    console.warn('[QuickDial] QuickDial folder is missing, recreating:', err);
+    try {
+      const root = await findOrCreateQuickDialFolder();
+      quickDialRootId = root.id;
+      currentPath = [{ id: root.id, title: 'QuickDial' }];
+      children = await chrome.bookmarks.getChildren(root.id);
+      shouldFocus = true;
+    } catch (recoveryErr) {
+      console.error('[QuickDial] Could not recover the QuickDial folder:', recoveryErr);
+      if (generation !== renderGeneration) return;
+      updateBreadcrumb();
+      grid.hidden = true;
+      emptyState.hidden = false;
+      return;
+    }
+  }
 
   // A newer render started while this one was awaiting storage; let it win.
   if (generation !== renderGeneration) return;
 
+  updateBreadcrumb();
+
   if (children.length === 0) {
-    grid.hidden      = true;
+    grid.hidden       = true;
     emptyState.hidden = false;
-    return;
+  } else {
+    grid.hidden       = false;
+    emptyState.hidden = true;
+
+    for (const node of children) {
+      grid.appendChild(createTile(node));
+    }
   }
 
-  grid.hidden      = false;
-  emptyState.hidden = true;
+  if (!shouldFocus && !hadFocus) return;
 
-  for (const node of children) {
-    grid.appendChild(createTile(node));
-  }
+  const restored = focusedId
+    ? grid.querySelector(`.tile[data-node-id="${CSS.escape(focusedId)}"] .tile-link`)
+    : null;
+  const target = restored
+    ?? grid.querySelector('.tile-link')
+    ?? document.getElementById('open-manager-btn');
+  target?.focus();
 }
 
 // ── Tile creation ─────────────────────────────────────────────────────────────
 
 /**
  * Builds a DOM tile for one bookmark node.
- * URL node  → bookmark tile (favicon badge + title).
- * No-URL node → folder tile (SVG folder icon + title).
+ * URL node  → bookmark tile (favicon badge + title), the card is a link.
+ * No-URL node → folder tile (SVG folder icon + title), the card is a button.
+ *
+ * The interactive element is a transparent overlay (`.tile-link`) rather than
+ * the tile itself: the whole card is still the click target, but the "open in
+ * new tab" checkbox can stay a sibling instead of being nested inside a link
+ * (interactive content inside <a> is invalid and breaks click handling).
  */
 function createTile(node) {
+  const isBookmark = Boolean(node.url);
+
   const tile = document.createElement('div');
-  tile.className = node.url ? 'tile bookmark-tile' : 'tile folder-tile';
+  tile.className = isBookmark ? 'tile bookmark-tile' : 'tile folder-tile';
   tile.setAttribute('role', 'listitem');
-  tile.setAttribute('tabindex', '0');
-  tile.setAttribute('aria-label', node.title || '(untitled)');
   tile.dataset.nodeId = node.id;
   tile.draggable = true;
 
-  tile.appendChild(node.url ? buildFaviconBadge(node) : buildFolderIcon());
+  tile.appendChild(isBookmark ? buildFaviconBadge(node) : buildFolderIcon());
 
   const titleEl = document.createElement('span');
   titleEl.className = 'tile-title';
   titleEl.textContent = node.title || '(untitled)';
   tile.appendChild(titleEl);
 
+  // A real <a>/<button> gives native keyboard activation, middle-click,
+  // Ctrl/Cmd-click and the context menu without extra handlers.
+  const action = document.createElement(isBookmark ? 'a' : 'button');
+  action.className = 'tile-link';
+  action.draggable = false; // let the tile govern dragging
+  action.setAttribute('aria-label', node.title || '(untitled)');
+
+  if (isBookmark) {
+    action.href = node.url;
+    applyNewTabPref(action, getNewTabPref(node.id));
+  } else {
+    action.type = 'button';
+  }
+
+  action.addEventListener('click', (e) => {
+    // Drag-and-drop ends with a click in some browsers; don't open the tile
+    // that was just moved.  Also ignore clicks while a drag is in flight.
+    if (draggedTile || performance.now() < suppressClickUntil) {
+      suppressClickUntil = 0;
+      e.preventDefault();
+      return;
+    }
+
+    if (!isBookmark) {
+      e.preventDefault();
+      // "Folder-navigation drill-in" — push folder onto path and re-render.
+      currentPath.push({ id: node.id, title: node.title });
+      renderGrid({ focusFirst: true });
+    }
+  });
+
+  tile.appendChild(action);
+
   // "Open in new tab" checkbox overlay — bookmark tiles only.
-  if (node.url) {
+  if (isBookmark) {
     const label = document.createElement('label');
     label.className = 'new-tab-checkbox-label';
     label.title = 'Open in new tab';
@@ -230,43 +341,15 @@ function createTile(node) {
     checkbox.addEventListener('change', (e) => {
       e.stopPropagation();
       setNewTabPref(node.id, checkbox.checked);
+      applyNewTabPref(action, checkbox.checked);
     });
 
-    // Prevent the label click from bubbling up and triggering the tile click.
+    // Prevent the label click from bubbling up and triggering the tile action.
     label.addEventListener('click', (e) => e.stopPropagation());
 
     label.appendChild(checkbox);
     tile.appendChild(label);
   }
-
-  const activate = () => {
-    // Drag-and-drop ends with a click in some browsers; don't open the tile
-    // that was just moved.  Also ignore clicks while a drag is in flight.
-    if (draggedTile || performance.now() < suppressClickUntil) {
-      suppressClickUntil = 0;
-      return;
-    }
-
-    if (node.url) {
-      if (getNewTabPref(node.id)) {
-        window.open(node.url, '_blank', 'noopener,noreferrer');
-      } else {
-        window.location.href = node.url;
-      }
-    } else {
-      // "Folder-navigation drill-in" — push folder onto path and re-render.
-      currentPath.push({ id: node.id, title: node.title });
-      renderGrid();
-    }
-  };
-
-  tile.addEventListener('click', activate);
-  tile.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      activate();
-    }
-  });
 
   tile.addEventListener('dragstart', (e) => handleDragStart(e, node, tile));
   tile.addEventListener('dragend', handleDragEnd);
@@ -321,14 +404,15 @@ function buildFolderIcon() {
   return wrapper;
 }
 
-/** Returns a deterministic HSL background color for fallback favicons. */
+/** Returns a deterministic gold shade for fallback favicons. */
 function deterministicHsl(str) {
   let hash = 0;
   for (let i = 0; i < (str?.length ?? 0); i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const hue = ((hash % 360) + 360) % 360;
-  return `hsl(${hue}, 45%, 40%)`;
+  // Fixed gold hue; only the lightness varies so fallbacks stay on-palette.
+  const lightness = 34 + (Math.abs(hash) % 13);
+  return `hsl(46, 65%, ${lightness}%)`;
 }
 
 // ── Drag-and-drop: reorder + move into a subfolder ────────────────────────────
@@ -533,7 +617,7 @@ function updateBreadcrumb() {
       btn.addEventListener('click', () => {
         // Slice path to the clicked ancestor and re-render.
         currentPath = currentPath.slice(0, targetIndex + 1);
-        renderGrid();
+        renderGrid({ focusFirst: true });
       });
     }
 

@@ -286,6 +286,12 @@ function createTile(node) {
   tile.dataset.nodeId = node.id;
   tile.draggable = true;
 
+  // Decorative gold accent wrapping the top-left corner and top edge.
+  const accent = document.createElement('span');
+  accent.className = 'tile-accent';
+  accent.setAttribute('aria-hidden', 'true');
+  tile.appendChild(accent);
+
   tile.appendChild(isBookmark ? buildFaviconBadge(node) : buildFolderIcon());
 
   const titleEl = document.createElement('span');
@@ -390,14 +396,28 @@ function buildFaviconBadge(node) {
   return wrapper;
 }
 
+/** Increments so each folder icon gets a unique SVG gradient ID. */
+let folderIconGradientSeq = 0;
+
 /** Folder icon: minimal SVG folder glyph, distinct from bookmark tiles. */
 function buildFolderIcon() {
   const wrapper = document.createElement('div');
   wrapper.className = 'folder-icon-wrapper';
+  const gradientId = `qd-folder-gold-${++folderIconGradientSeq}`;
   // Simple open-folder SVG (Material Design-inspired).
   wrapper.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16
+      <defs>
+        <linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#fff3b0"/>
+          <stop offset="18%" stop-color="#ffe98a"/>
+          <stop offset="38%" stop-color="#d4af37"/>
+          <stop offset="58%" stop-color="#b8860b"/>
+          <stop offset="76%" stop-color="#ffe98a"/>
+          <stop offset="100%" stop-color="#d4af37"/>
+        </linearGradient>
+      </defs>
+      <path fill="url(#${gradientId})" d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16
                c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
     </svg>
   `;

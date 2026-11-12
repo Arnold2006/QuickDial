@@ -142,6 +142,40 @@ body {
   z-index: 0;
 }
 
+/* Same gold accent on the clock and TODO cards (16px corner radius). */
+#clock-widget::before,
+#todo-widget::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 33.333%;
+  background-image:
+    linear-gradient(90deg,
+      #f7df8a 0%, #c9971f 14%, #ffe98a 32%,
+      #d4af37 52%, #fff3b0 70%, #e0b23c 86%, #b8860b 100%),
+    linear-gradient(0deg,
+      transparent 0%, rgba(184, 134, 11, 0.55) 22%,
+      rgba(212, 175, 55, 0.9) 48%, #ffe98a 78%, #f7df8a 100%),
+    radial-gradient(circle at 16px 16px,
+      transparent 0 14px, #c9971f 14px 14.8px,
+      #ffe98a 14.8px 16px, transparent 16px);
+  background-repeat: no-repeat;
+  background-position:
+    left 16px top 0,
+    left 0 top 16px,
+    left 0 top 0;
+  background-size:
+    calc(100% - 16px) 2px,
+    2px calc(100% - 16px),
+    16px 16px;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 40%, transparent 92%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 40%, transparent 92%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* The tile's real link/button, stretched over the whole card. */
 .tile-link {
   position: absolute;

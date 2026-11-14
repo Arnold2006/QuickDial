@@ -374,7 +374,8 @@ body {
 /* ── Clock widget ───────────────────────────────────────────────────────────── */
 #clock-widget {
   position: fixed;
-  top: 1.5rem;
+  /* Match the body's top padding so the first tile row and clock align. */
+  top: 2rem;
   right: 1.5rem;
   background-color: #1a1a1a;
   border-radius: 16px;

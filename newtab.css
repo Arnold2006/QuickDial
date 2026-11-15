@@ -144,7 +144,8 @@ body {
 
 /* Same gold accent on the clock and TODO cards (16px corner radius). */
 #clock-widget::before,
-#todo-widget::before {
+#todo-widget::before,
+#uptime-widget::before {
   content: '';
   position: absolute;
   top: 0;
@@ -630,4 +631,248 @@ body {
 
 #todo-widget:hover .todo-resize-handle {
   opacity: 1;
+}
+
+/* ── Uptime widget ─────────────────────────────────────────────────────────── */
+#uptime-widget {
+  position: fixed;
+  top: 160px; /* replaced by uptime-widget.js once the TODO is positioned */
+  right: 1.5rem;
+  width: 240px; /* matched to the TODO width by uptime-widget.js */
+  background-color: #1a1a1a;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.uptime-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0.75rem 0.5rem 0.95rem;
+  border-bottom: 1px solid #2e2e2e;
+  flex-shrink: 0;
+}
+
+.uptime-title {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #8a8a8a;
+  text-transform: uppercase;
+}
+
+.uptime-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.uptime-refresh,
+.uptime-config-btn {
+  background: none;
+  border: none;
+  color: #8a8a8a;
+  font-family: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.1rem 0.15rem;
+  border-radius: 4px;
+  transition: color 0.12s, opacity 0.12s;
+}
+
+.uptime-refresh {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.uptime-refresh:hover,
+.uptime-config-btn:hover,
+.uptime-config-btn[aria-expanded="true"] {
+  color: #f0d264;
+}
+
+.uptime-refresh:disabled {
+  color: #4d4d4d;
+  cursor: default;
+}
+
+.uptime-list {
+  list-style: none;
+  padding: 0.2rem 0;
+  margin: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3d3d3d transparent;
+}
+
+.uptime-list::-webkit-scrollbar { width: 4px; }
+.uptime-list::-webkit-scrollbar-track { background: transparent; }
+.uptime-list::-webkit-scrollbar-thumb {
+  background-color: #3d3d3d;
+  border-radius: 4px;
+}
+
+.uptime-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.33rem 0.75rem 0.33rem 0.95rem;
+  font-size: 0.72rem;
+}
+
+.uptime-item:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.uptime-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #8a8a8a;
+  flex-shrink: 0;
+}
+
+.uptime-dot[data-state="up"] {
+  background-color: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.uptime-dot[data-state="down"] {
+  background-color: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
+}
+
+.uptime-dot[data-state="checking"] {
+  background-color: #d4af37;
+  animation: uptime-pulse 1s ease-in-out infinite;
+}
+
+@keyframes uptime-pulse {
+  50% { opacity: 0.35; }
+}
+
+.uptime-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ededed;
+}
+
+.uptime-meta {
+  flex-shrink: 0;
+  color: #8a8a8a;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.uptime-item[data-status="down"] .uptime-meta {
+  color: #f87171;
+}
+
+.uptime-delete {
+  display: none;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #8a8a8a;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.1rem;
+  border-radius: 3px;
+  transition: color 0.1s;
+}
+
+.config-open .uptime-delete {
+  display: inline-flex;
+}
+
+.uptime-delete:hover {
+  color: #f0d264;
+}
+
+.uptime-empty {
+  padding: 0.6rem 0.95rem 0.8rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #8a8a8a;
+}
+
+.uptime-config {
+  padding: 0.55rem 0.75rem 0.65rem 0.95rem;
+  border-top: 1px solid #2e2e2e;
+  flex-shrink: 0;
+}
+
+.uptime-add-form {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.uptime-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #3d3d3d;
+  color: #ededed;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.1rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.uptime-input::placeholder {
+  color: #858585;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.uptime-input:focus {
+  border-bottom-color: #d4af37;
+}
+
+.uptime-add-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #d4af37;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  transition: color 0.1s;
+}
+
+.uptime-add-btn:hover {
+  color: #f0d264;
+}
+
+.uptime-form-error {
+  margin-top: 0.35rem;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: #f87171;
+}
+
+.uptime-refresh:focus-visible,
+.uptime-config-btn:focus-visible,
+.uptime-add-btn:focus-visible,
+.uptime-delete:focus-visible {
+  outline: 1px solid #d4af37;
+  outline-offset: 1px;
 }
